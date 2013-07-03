@@ -31,29 +31,47 @@ Project title: %s
 Description: %s"""%(row[0], row[1])
 
 def get_student_grade_by_project(title):
+
     query = """SELECT first_name, last_name, project_title, grade FROM Grades INNER JOIN Students ON (Students.github = Grades.student_github) WHERE project_title = ?"""
     DB.execute(query, (title,))
     rows = DB.fetchall()
-    print rows 
-    print """\
-Name: %s %s
-Project Title: %r
-Grade: %r""" % (rows[0], rows[1], rows[2:-1], rows[-1])
+   
+    for row in rows:
+        print """\
+        Name: %s %s
+        Project Title: %s
+        Grade: %d""" % (row[0], row[1], row[2], row[3])
 
+def get_all_grades_for_student(github):
+    query = """SELECT first_name, last_name, project_title, grade FROM Students INNER JOIN Grades ON (Students.github = Grades.student_github) WHERE github = ?"""
+    DB.execute(query, (github,)) 
+    rows = DB.fetchall()
+    for row in rows:
+        print """\
+        Name: %s %s
+        Project: %s
+        Grade: %d""" % (row[0], row[1], row[2], row[3])
+            
 
 def make_new_project(title, description, max_grade):
     query = """INSERT into Projects VALUES(?, ?, ?)"""
-    DB.execute(query, (title, description, max_grade))
+    DB.execute(query, (title.strip(), description.strip(), max_grade))
     CONN.commit()
     print "Successfully added project: %s %s" % (title, description)
+
+def update_grade_by_git_proj(new_grade, git_name, proj_title):
+    query = """UPDATE Grades SET grade = ?  WHERE Grades.student_github = ? AND Grades.project_title = ?"""
+    DB.execute(query,(new_grade, git_name, proj_title))
+    CONN.commit()
+    print "%s project score in %s successfully updated to %s" %(git_name, proj_title, new_grade)
 
 def main():
     connect_to_db()
     command = None
-    print "If creating a new project, please use a one word project name"
+    print "Please separate your inputs with commas"
     while command != "quit":
         input_string = raw_input("HBA Database> ")
-        tokens = input_string.split()
+        tokens = input_string.split(", ")
         command = tokens[0]
         args = tokens[1:]
 
@@ -73,15 +91,13 @@ def main():
         elif command == "get_grades":
             get_student_grade_by_project(*args)
 
-
         elif command == "new_project":
-            arg1 = " ".join(tokens[1:2])
-            print arg1
-            arg2 = " ".join(tokens[2:-1])
-            print arg2
-            arg3 = tokens[-1]
-            print arg3
-            make_new_project(arg1, arg2, arg3)
+            make_new_project(*args)
+        elif command == "update_grade":
+            update_grade_by_git_proj(*args)
+
+        elif command == "get_all_grades":
+            get_all_grades_for_student(*args)
 
     CONN.close()
 
